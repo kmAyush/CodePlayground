@@ -29,9 +29,9 @@ def test_if_elif_else_uses_flat_elif_not_nested_if():
         """
     )
     lines = output.splitlines()
-    assert any(line.strip().startswith("नहींतो") for line in lines)
+    assert any(line.strip().startswith("nahitoh") for line in lines)
     assert sum(1 for line in lines if line.strip().startswith("अगर ")) == 1
-    assert any(line.strip() == "वरना:" for line in lines)
+    assert any(line.strip() == "varna:" for line in lines)
 
 
 def test_for_loop_emits_keliye_and_mein():

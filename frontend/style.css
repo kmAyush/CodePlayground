@@ -24,8 +24,8 @@
   --cm-punctuation: #696c77;
   --cm-variable: #1a1d23;
 
-  --output-max-height: 200px;
-  --error-max-height: 160px;
+  --output-max-height: 180px;
+  --error-max-height: 140px;
 }
 
 :root[data-theme="dark"] {
@@ -93,6 +93,8 @@ body {
   margin: 0;
   padding: 0;
   max-width: 100%;
+  height: 100vh;
+  overflow: hidden;
 }
 
 body {
@@ -100,12 +102,12 @@ body {
   color: var(--text);
   font-family: "JetBrains Mono", "Courier New", monospace;
   padding: 16px;
-  min-height: 100vh;
   display: flex;
   flex-direction: column;
   gap: 12px;
 }
 
+/* Header */
 .app-header {
   flex: 0 0 auto;
   display: flex;
@@ -119,6 +121,12 @@ body {
   margin: 0;
 }
 
+.app-header p {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}
+
 .icon-btn {
   background: var(--surface);
   color: var(--text);
@@ -127,36 +135,54 @@ body {
   padding: 8px 14px;
   cursor: pointer;
   font: inherit;
+  transition: all 0.2s ease;
 }
 
-.icon-btn:hover {
+.icon-btn:hover,
+.icon-btn.active {
   border-color: var(--accent);
+  color: var(--accent);
 }
 
-.panels {
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.hidden {
+  display: none !important;
+}
+
+/* 3-Column Workspace Grid */
+.workspace-grid {
+  flex: 1 1 auto;
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  grid-template-columns: 1fr 1fr 280px; /* Two main code columns + narrow sidebar */
+  gap: 12px;
+  min-height: 0;
+  transition: grid-template-columns 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* When the Keymap sidebar is toggled off */
+.workspace-grid.hide-keymap {
+  grid-template-columns: 1fr 1fr 0px;
+}
+
+.workspace-grid.hide-keymap .mapping-sidebar {
+  display: none;
+}
+
+/* Vertical Column Layout */
+.workspace-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
-/* Code panels take up whatever vertical space remains after the header,
-   controls, output row and error row have taken theirs. */
-.code-panels {
-  flex: 1 1 420px;
-  min-height: 420px;
-}
-
-@media (max-width: 720px) {
-  .panels {
-    grid-template-columns: 1fr;
-  }
-
-  .code-panels {
-    grid-template-rows: 1fr 1fr;
-  }
-}
-
+/* Panel Containers */
 .panel {
   background: var(--surface);
   border: 1px solid var(--border);
@@ -169,12 +195,18 @@ body {
   overflow: hidden;
 }
 
+/* Make Code Editors Expand to fill vertical space */
+.workspace-column > .panel:first-child {
+  flex: 1 1 60%;
+}
+
 .panel-title {
   flex: 0 0 auto;
   margin: 0 0 8px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.05em;
   color: var(--text-muted);
 }
 
@@ -184,31 +216,95 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
-  /* Monaco requires a positioned container with explicit dimensions */
   position: relative;
 }
 
-/* Monaco injects a .monaco-editor div — make it fill the mount */
 .editor-mount .monaco-editor,
 .editor-mount .monaco-editor-background,
 .editor-mount .monaco-editor .overflow-guard {
   border-radius: 7px;
 }
 
+/* Column 3: Mapping Sidebar Specifics */
+.mapping-sidebar .sidebar-panel {
+  height: 100%;
+  border-color: var(--border);
+  background: var(--surface);
+}
+
+.sidebar-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sidebar-content {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-right: 4px;
+}
+
+.help-section h3 {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+}
+
+.help-hint {
+  text-transform: none;
+  font-weight: 400;
+  color: var(--text-muted);
+}
+
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.82rem;
+}
+
+.help-table th,
+.help-table td {
+  text-align: left;
+  padding: 5px 6px;
+  border-bottom: 1px solid var(--border);
+}
+
+.help-table th {
+  color: var(--text-muted);
+  font-weight: 600;
+  font-size: 0.75rem;
+}
+
+.help-table td:last-child {
+  font-family: "JetBrains Mono", monospace;
+  color: var(--cm-keyword);
+}
+
+.help-empty {
+  color: var(--text-muted);
+  font-style: italic;
+  font-size: 0.8rem;
+}
+
+/* Controls Toolbar */
 .controls {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
   gap: 16px;
-  flex-wrap: wrap;
+  padding: 4px 0;
 }
 
 .controls-buttons {
   display: flex;
   gap: 10px;
-  flex-wrap: wrap;
-  justify-content: center;
 }
 
 .btn {
@@ -216,9 +312,11 @@ body {
   color: var(--text);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 10px 18px;
+  padding: 8px 16px;
   font: inherit;
+  font-size: 0.9rem;
   cursor: pointer;
+  transition: border-color 0.15s ease;
 }
 
 .btn:hover {
@@ -261,9 +359,9 @@ body {
 }
 
 .status-pill {
-  padding: 6px 14px;
+  padding: 5px 12px;
   border-radius: 999px;
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   border: 1px solid var(--border);
   color: var(--text-muted);
   white-space: nowrap;
@@ -285,25 +383,13 @@ body {
   border-color: var(--danger);
 }
 
-/* Output row: reasonable, capped height — this is a result glance, not
-   another editor. Scrolls internally when content overflows. */
-.output-panels {
-  flex: 0 0 auto;
-}
-
+/* Output Panels */
 .output-panels .panel {
   max-height: var(--output-max-height);
 }
 
-/* Error row: sits below output, same reasonable-height treatment, styled
-   to read as an alert rather than plain output. */
-.error-panels {
-  flex: 0 0 auto;
-}
-
 .error-panels .panel {
   max-height: var(--error-max-height);
-  border-color: var(--border);
 }
 
 .error-panel-wrap.has-error {
@@ -315,17 +401,14 @@ body {
   flex: 1 1 auto;
   min-height: 0;
   margin: 0;
-  padding: 10px;
+  padding: 8px;
   white-space: pre-wrap;
   word-break: break-word;
   font-family: "JetBrains Mono", monospace;
-  line-height: 1.6;
+  font-size: 0.85rem;
+  line-height: 1.5;
   overflow-y: auto;
   color: var(--success);
-}
-
-.hindi-output {
-  font-family: "Noto Sans Devanagari", "JetBrains Mono", monospace;
 }
 
 .english-error,
@@ -335,4 +418,29 @@ body {
 
 .error-panel-wrap.has-error .output-panel {
   color: var(--danger);
+}
+
+/* Tablet & Mobile Fallbacks */
+@media (max-width: 992px) {
+  html, body {
+    height: auto;
+    overflow: auto;
+  }
+
+  .workspace-grid {
+    grid-template-columns: 1fr;
+    height: auto;
+  }
+
+  .workspace-grid.hide-keymap {
+    grid-template-columns: 1fr;
+  }
+
+  .workspace-column {
+    height: auto;
+  }
+
+  .code-panels {
+    min-height: 320px;
+  }
 }

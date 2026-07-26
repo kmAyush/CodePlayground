@@ -117,7 +117,7 @@ def build_clean_traceback(
     lines = [f"{TRACEBACK_WORD}:"]
     for frame in user_frames:
         hindi_func = _find_hindi_name(frame.name, reverse_map)
-        lines.append(f'  फ़ाइल "<hindi>", पंक्ति {frame.lineno}, में {hindi_func}')
+        lines.append(f'  phaail "<hindi>", pankti {frame.lineno}, mein {hindi_func}')
         if frame.lineno and 0 < frame.lineno <= len(hindi_lines):
             lines.append(f"    {hindi_lines[frame.lineno - 1].strip()}")
 

@@ -35,14 +35,14 @@ def translate_output(stdout: str, reverse_map: dict | None = None) -> str:
 
 
 def translate_type(type_name: str) -> str:
-    """"NameError" -> "नाम_त्रुटि" """
+    """"NameError" -> "naam_truti" """
     return ERROR_TYPE_MAP.get(type_name, type_name)
 
 
 _ITER_CALL_SUB = {
-    "iterable": "दोहराने",
-    "callable": "कॉल",
-    "subscriptable": "सब्स्क्रिप्ट",
+    "iterable": "dohrane_layak",
+    "callable": "call_karne_layak",
+    "subscriptable": "link_karne_layak",
 }
 
 
@@ -63,34 +63,34 @@ def _to_hindi_name(name: str, forward_map: dict) -> str:
 _MESSAGE_PATTERNS: list[tuple[re.Pattern, object]] = [
     (
         re.compile(r"^name '(.+)' is not defined$"),
-        lambda m, fw: f"नाम '{_to_hindi_name(m.group(1), fw)}' परिभाषित नहीं है",
+        lambda m, fw: f"Naam '{_to_hindi_name(m.group(1), fw)}' paribhashit nahi hai",
     ),
     (
         re.compile(r"^'(.+)' object has no attribute '(.+)'$"),
         lambda m, fw: (
-            f"'{_to_hindi_name(m.group(1), fw)}' वस्तु में विशेषता "
-            f"'{_to_hindi_name(m.group(2), fw)}' नहीं है"
+            f"'{_to_hindi_name(m.group(1), fw)}' vastu mein visheshta "
+            f"'{_to_hindi_name(m.group(2), fw)}' nahi hai"
         ),
     ),
     (
         re.compile(r"^(.+\(\)) takes (\d+) positional arguments? but (\d+) (?:was|were) given$"),
-        lambda m, fw: f"{m.group(1)} को {m.group(2)} स्थितिगत तर्क चाहिए लेकिन {m.group(3)} दिए गए",
+        lambda m, fw: f"{m.group(1)} ko {m.group(2)} sthitigat tark chahiye lekin {m.group(3)} diye gaye",
     ),
     (
         re.compile(r"^'(.+)' object is not (iterable|callable|subscriptable)$"),
-        lambda m, fw: f"'{_to_hindi_name(m.group(1), fw)}' वस्तु {_ITER_CALL_SUB[m.group(2)]} योग्य नहीं है",
+        lambda m, fw: f"'{_to_hindi_name(m.group(1), fw)}' vastu {_ITER_CALL_SUB[m.group(2)]} yogya nahi hai",
     ),
     (
         re.compile(r"^unsupported operand type\(s\) for (.+): '(.+)' and '(.+)'$"),
-        lambda m, fw: f"'{m.group(2)}' और '{m.group(3)}' के लिए {m.group(1)} संक्रिया असमर्थित है",
+        lambda m, fw: f"'{m.group(2)}' aur '{m.group(3)}' ke liye {m.group(1)} sankriya asamarthit hai",
     ),
     (
         re.compile(r'^can only concatenate str \(not "(.+)"\) to str$'),
-        lambda m, fw: f'स्ट्रिंग को केवल स्ट्रिंग के साथ जोड़ा जा सकता है, "{m.group(1)}" के साथ नहीं',
+        lambda m, fw: f'string ko keval string ke saath joda ja sakta hai, "{m.group(1)}" ke saath nahi',
     ),
     (
         re.compile(r"^invalid literal for int\(\) with base (\d+): '(.+)'$"),
-        lambda m, fw: f"int() के लिए base {m.group(1)} में '{m.group(2)}' अवैध अक्षर है",
+        lambda m, fw: f"int() ke liye base {m.group(1)} mein '{m.group(2)}' avaidh akshar hai",
     ),
 ]
 
@@ -114,7 +114,7 @@ def _translate_embedded_messages(text: str, reverse_map: dict | None) -> str:
     forward = _forward_map(reverse_map)
 
     text = _DID_YOU_MEAN_SEARCH.sub(
-        lambda m: f"। क्या आपका मतलब '{_to_hindi_name(m.group(1), forward)}' से था?", text
+        lambda m: f". kya aapka matlab '{_to_hindi_name(m.group(1), forward)}' se tha?", text
     )
 
     for pattern, builder in _MESSAGE_PATTERNS_SEARCH:
@@ -131,7 +131,7 @@ def translate_message(msg: str, reverse_map: dict | None = None) -> str:
     suffix_match = _DID_YOU_MEAN_SUFFIX.search(msg)
     if suffix_match:
         suggested_name = _to_hindi_name(suffix_match.group(1), forward)
-        suggestion = f"। क्या आपका मतलब '{suggested_name}' से था?"
+        suggestion = f". kya aapka matlab '{suggested_name}' se tha?"
         msg = msg[: suffix_match.start()]
 
     for pattern, builder in _MESSAGE_PATTERNS:
@@ -151,12 +151,12 @@ _TYPE_ONLY_PATTERN = re.compile(r"^[A-Za-z][A-Za-z0-9_.]+$")
 
 
 def translate_frame_line(line: str) -> str:
-    """'  File "x", line 3, in foo' -> '  फ़ाइल "x", पंक्ति 3, में foo'"""
+    """'  File "x", line 3, in foo' -> '  File "x", Pankti 3, mein foo'"""
     match = _FRAME_LINE_PATTERN.match(line)
     if not match:
         return line
     indent, filename, lineno, func = match.groups()
-    return f'{indent}फ़ाइल "{filename}", पंक्ति {lineno}, में {func}'
+    return f'{indent}File "{filename}", Pankti {lineno}, mein {func}'
 
 
 def translate_error(error_str: str, reverse_map: dict | None = None) -> str:

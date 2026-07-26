@@ -3,30 +3,101 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>हिंदी Python Playground</title>
+  <title>Hindi Python Playground</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap"
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet"
   />
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header class="app-header">
-    <h1>🔵 हिंदी Python Playground</h1>
-    <button id="theme-toggle" class="icon-btn" type="button">🌙 Dark</button>
+    <h1>🔵 Hindi Python Playground</h1>
+    <p>Writing Python Code in Hindi Transliterate</p>
+    <div class="header-actions">
+      <button id="theme-toggle" class="icon-btn" type="button">🌙 Dark</button>
+      <button id="help-toggle" class="icon-btn active" type="button" aria-pressed="true">📖 Keymap</button>
+    </div>
   </header>
 
-  <main class="panels code-panels">
-    <section class="panel">
-      <h2 class="panel-title">English Panel</h2>
-      <div id="english-editor" class="editor-mount english-panel"></div>
-    </section>
-    <section class="panel">
-      <h2 class="panel-title">Hindi Panel</h2>
-      <div id="hindi-editor" class="editor-mount hindi-panel"></div>
-    </section>
+  <!-- Main 3-Column Workspace -->
+  <main class="workspace-grid" id="workspace">
+
+    <!-- Column 1: Hindi Code & Output -->
+    <div class="workspace-column">
+      <section class="panel">
+        <h2 class="panel-title">Hindi Panel</h2>
+        <div id="hindi-editor" class="editor-mount hindi-panel"></div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">Hindi Output</h2>
+        <pre id="hindi-output" class="output-panel hindi-output"></pre>
+      </section>
+
+      <section class="panel error-panel-wrap" id="hindi-error-wrap">
+        <h2 class="panel-title">Hindi Errors</h2>
+        <pre id="hindi-error" class="output-panel hindi-output hindi-error"></pre>
+      </section>
+    </div>
+
+    <!-- Column 2: English Code & Output -->
+    <div class="workspace-column">
+      <section class="panel">
+        <h2 class="panel-title">English Panel</h2>
+        <div id="english-editor" class="editor-mount english-panel"></div>
+      </section>
+
+      <section class="panel">
+        <h2 class="panel-title">English Output</h2>
+        <pre id="english-output" class="output-panel english-output"></pre>
+      </section>
+
+      <section class="panel error-panel-wrap" id="english-error-wrap">
+        <h2 class="panel-title">English Errors</h2>
+        <pre id="english-error" class="output-panel english-error"></pre>
+      </section>
+    </div>
+
+    <!-- Column 3: Mapping Sidebar (Smallest Column) -->
+    <aside class="workspace-column mapping-sidebar" id="keymap-sidebar">
+      <div class="panel sidebar-panel">
+        <div class="sidebar-header">
+          <h2 class="panel-title">Keymap Reference</h2>
+        </div>
+
+        <div class="sidebar-content">
+          <section class="help-section">
+            <h3>Keywords</h3>
+            <table class="help-table">
+              <thead><tr><th>Python</th><th>Hindi</th></tr></thead>
+              <tbody id="help-keywords-body"></tbody>
+            </table>
+          </section>
+
+          <section class="help-section">
+            <h3>Built-in Functions</h3>
+            <table class="help-table">
+              <thead><tr><th>Python</th><th>Hindi</th></tr></thead>
+              <tbody id="help-builtins-body"></tbody>
+            </table>
+          </section>
+
+          <section class="help-section">
+            <h3>LLM Identifiers <span class="help-hint">(session)</span></h3>
+            <table class="help-table">
+              <thead><tr><th>English</th><th>Hindi (LLM)</th></tr></thead>
+              <tbody id="help-llm-body">
+                <tr><td colspan="2" class="help-empty">Run a translation to see identifiers here.</td></tr>
+              </tbody>
+            </table>
+          </section>
+        </div>
+      </div>
+    </aside>
+
   </main>
 
   <div class="controls">
@@ -38,40 +109,11 @@
     <span id="status-indicator" class="status-pill" data-state="ready">Ready</span>
   </div>
 
-  <section class="panels output-panels">
-    <div class="panel">
-      <h2 class="panel-title">English Output</h2>
-      <pre id="english-output" class="output-panel english-output"></pre>
-    </div>
-    <div class="panel">
-      <h2 class="panel-title">Hindi Output</h2>
-      <pre id="hindi-output" class="output-panel hindi-output"></pre>
-    </div>
-  </section>
-
-  <section class="panels error-panels">
-    <div class="panel error-panel-wrap" id="english-error-wrap">
-      <h2 class="panel-title">English Errors</h2>
-      <pre id="english-error" class="output-panel english-error"></pre>
-    </div>
-    <div class="panel error-panel-wrap" id="hindi-error-wrap">
-      <h2 class="panel-title">Hindi Errors</h2>
-      <pre id="hindi-error" class="output-panel hindi-output hindi-error"></pre>
-    </div>
-  </section>
-
-  <!--
-    Monaco loads via its own AMD loader (require.js bundled inside it).
-    Set the base path before the loader script runs, then boot editor.js
-    once Monaco's define() infrastructure is ready.
-    No importmap, no ESM version juggling — Monaco is one self-contained bundle.
-  -->
+  <!-- Monaco Editor Setup -->
   <script>var require = { paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs" } };</script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.js"></script>
   <script>
     require(["vs/editor/editor.main"], function () {
-      // Monaco is fully loaded — dynamically import our module so it can
-      // access window.monaco which the AMD loader just populated.
       import("./editor.js");
     });
   </script>

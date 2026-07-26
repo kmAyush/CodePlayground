@@ -8,8 +8,8 @@ from core.llm_call import MODEL, client
 
 SYSTEM_PROMPT = """You translate Python identifiers from Hindi to English.
 
-Input:  JSON {"identifiers": ["जोड़", "छात्र", "अंक"]}
-Output: JSON {"जोड़": "add", "छात्र": "student", "अंक": "marks"}
+Input:  JSON {"identifiers": ["jod", "chatr", "ank"]}
+Output: JSON {"jod": "add", "chatr": "student", "ank": "marks"}
 
 Rules:
 - Output values must be valid Python identifiers: snake_case, no spaces,

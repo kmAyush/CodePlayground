@@ -8,7 +8,7 @@ import ast
 
 from core.constants import BUILTIN_METHODS, DUNDER, KEYWORD_MAP
 
-SELF_HINDI = "स्वयं"
+SELF_HINDI = "swayam"
 
 BIN_OPS: dict[type, str] = {
     ast.Add: "+",

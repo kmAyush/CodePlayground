@@ -15,15 +15,15 @@ client = SarvamAI(api_subscription_key=os.getenv("SARVAM_API") or "not-set")
 
 MODEL = "sarvam-30b"
 
-SYSTEM_PROMPT = """You translate Python identifiers from English to Hindi.
+SYSTEM_PROMPT = """You translate Python identifiers from English to Hindi transliterate.
 
 Input:  JSON {"identifiers": ["student", "marks", "items", "append"]}
-Output: JSON {"student":"छात्र","marks":"अंक","items":"मदें","append":"जोड़ो"}
+Output: JSON {"student":"chatr","marks":"ank","items":"madde","append":"jodo"}
 
 Rules:
 - Translate ALL identifiers, including method names like items, append, split.
 - For multi-word snake_case identifiers, translate each part and join with
-  underscores: "student_marks" -> "छात्र_अंक".
+  underscores: "student_marks" -> "chatr_ank".
 - Output values must be pure Devanagari — no English letters.
 - Respond with JSON only. No markdown fences, no explanation.
 """

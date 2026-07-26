@@ -3,11 +3,16 @@
 // regex-rule system, no StreamLanguage / lezer involved.
 // Called once after Monaco is loaded, before the Hindi editor is created.
 
-import { KEYWORD_MAP, BUILTIN_MAP, CONSTANT_MAP } from "./theme.js";
+import { KEYWORD_MAP, BUILTIN_MAP, CONSTANT_MAP, KEYWORD_DOCS } from "./theme.js";
 
 const HINDI_KEYWORDS  = Object.values(KEYWORD_MAP);
 const HINDI_BUILTINS  = Object.values(BUILTIN_MAP);
 const HINDI_CONSTANTS = Object.values(CONSTANT_MAP);
+
+// Hindi (transliterated) keyword -> its English Python keyword, for hover lookups.
+const REVERSE_KEYWORD_MAP = Object.fromEntries(
+  Object.entries(KEYWORD_MAP).map(([english, hindi]) => [hindi, english])
+);
 
 export const HINDI_LANG_ID = "hindi-python";
 
@@ -93,7 +98,35 @@ export function registerHindiLanguage() {
     ],
     indentationRules: {
       increaseIndentPattern: /:\s*(#.*)?$/,
-      decreaseIndentPattern: /^\s*(वरना|नहींतो|सिवाय|अंत_में|else|elif|except|finally)\b/,
+      decreaseIndentPattern: new RegExp(
+        `^\\s*(${[KEYWORD_MAP.else, KEYWORD_MAP.elif, KEYWORD_MAP.except, KEYWORD_MAP.finally, "else", "elif", "except", "finally"].join("|")})\\b`
+      ),
+    },
+  });
+
+  // Hover: show the English keyword + a one-line definition for any
+  // transliterated Hindi keyword the cursor is over.
+  monaco.languages.registerHoverProvider(HINDI_LANG_ID, {
+    provideHover(model, position) {
+      const word = model.getWordAtPosition(position);
+      if (!word) return null;
+
+      const english = REVERSE_KEYWORD_MAP[word.word];
+      if (!english) return null;
+
+      const contents = [{ value: `**${word.word}** → \`${english}\` _(keyword)_` }];
+      const doc = KEYWORD_DOCS[english];
+      if (doc) contents.push({ value: doc });
+
+      return {
+        range: new monaco.Range(
+          position.lineNumber,
+          word.startColumn,
+          position.lineNumber,
+          word.endColumn
+        ),
+        contents,
+      };
     },
   });
 }

@@ -4,22 +4,32 @@
 // vs/editor/editor.main has fully resolved).
 
 import { registerHindiLanguage, HINDI_LANG_ID } from "./hindi-mode.js";
-import { resolveCssVar, ENGLISH_BUILTINS } from "./theme.js";
+import { resolveCssVar, ENGLISH_BUILTINS, KEYWORD_MAP, BUILTIN_MAP } from "./theme.js";
 import { translateToHindi, translateToEnglish, executeHindi, executeEnglish } from "./api.js";
 
 const monaco = window.monaco;
 const DEBOUNCE_MS = 800;
 
-const DEFAULT_ENGLISH = `def greet(name):
-    message = "Hello, " + name
-    print(message)
+const DEFAULT_ENGLISH = `import traceback
+class Animal:
+    def __init__(self, name, sound):
+        self.name = name
+        self.sound = sound
 
+    def speak(self):
+        return self.name + " says " + self.sound
 
-for name in ["Asha", "Ravi"]:
-    greet(name)
+try:
+    dog = Animal("Dog", "Woof")
+    print(dog1.speak())
+except Exception as e:
+    traceback.print_exc()
+    print("Error:",e)
+
 `;
 
 // ---- DOM refs -----------------------------------------------------------
+const workspace         = document.getElementById("workspace");
 const runBtn            = document.getElementById("run-btn");
 const resetBtn          = document.getElementById("reset-btn");
 const syncBtn           = document.getElementById("sync-btn");
@@ -31,13 +41,18 @@ const hindiErrorPanel   = document.getElementById("hindi-error");
 const englishErrorPanel = document.getElementById("english-error");
 const hindiErrorWrap    = document.getElementById("hindi-error-wrap");
 const englishErrorWrap  = document.getElementById("english-error-wrap");
+const helpToggle        = document.getElementById("help-toggle");
+const helpKeywordsBody  = document.getElementById("help-keywords-body");
+const helpBuiltinsBody  = document.getElementById("help-builtins-body");
+const helpLlmBody       = document.getElementById("help-llm-body");
 
 // ---- module state -------------------------------------------------------
-let sessionId       = null;
-let syncLock        = false;
-let debounceTimer   = null;
-let lastEditedPanel = "english";
-let currentTheme    = "light"; // track so we can rebuild Monaco theme on toggle
+let sessionId         = null;
+let syncLock          = false;
+let debounceTimer     = null;
+let lastEditedPanel   = "english";
+let currentTheme      = "light"; // track so we can rebuild Monaco theme on toggle
+let lastTranslationMap = null;   // this session's LLM-generated identifiers
 
 // ---- status pill --------------------------------------------------------
 function setStatus(state, message) {
@@ -50,6 +65,46 @@ function reportError(err) {
   setStatus("error", `Error: ${err.message}`);
 }
 
+// ---- help sidebar ---------------------------------------------------------
+function escapeHtml(str) {
+  return String(str).replace(
+    /[&<>"']/g,
+    (ch) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[ch]
+  );
+}
+
+function renderRows(map) {
+  return Object.entries(map)
+    .map(([en, hi]) => `<tr><td>${escapeHtml(en)}</td><td>${escapeHtml(hi)}</td></tr>`)
+    .join("");
+}
+
+function renderLlmTable(map) {
+  const entries = map ? Object.entries(map) : [];
+  helpLlmBody.innerHTML = entries.length
+    ? renderRows(map)
+    : '<tr><td colspan="2" class="help-empty">Run a translation to see identifiers here.</td></tr>';
+}
+
+// Keywords/builtins are fixed, so render once; the LLM table is rebuilt dynamically
+helpKeywordsBody.innerHTML = renderRows(KEYWORD_MAP);
+helpBuiltinsBody.innerHTML = renderRows(BUILTIN_MAP);
+
+function toggleHelpSidebar() {
+  const isHidden = workspace.classList.toggle("hide-keymap");
+
+  // Update button visual state and accessibility attributes
+  helpToggle.classList.toggle("active", !isHidden);
+  helpToggle.setAttribute("aria-pressed", (!isHidden).toString());
+
+  // Render dynamic LLM variables when opened
+  if (!isHidden) {
+    renderLlmTable(lastTranslationMap);
+  }
+}
+
+helpToggle.addEventListener("click", toggleHelpSidebar);
+
 // ---- Monaco theme -------------------------------------------------------
 // Monaco themes need explicit hex/rgb values — CSS variables don't work
 // inside defineTheme(). We resolve them from the document at theme-apply
@@ -61,8 +116,8 @@ function buildMonacoTheme(variant) {
     base: variant === "dark" ? "vs-dark" : "vs",
     inherit: true, // inherit base token rules, then override below
     rules: [
-      { token: "keyword",   foreground: c("--cm-keyword").replace("#",""),   fontStyle: "bold" },
-      { token: "builtin",   foreground: c("--cm-builtin").replace("#","")   },
+      { token: "keyword",  foreground: c("--cm-keyword").replace("#",""),  fontStyle: "bold" },
+      { token: "builtin",  foreground: c("--cm-builtin").replace("#","")   },
       { token: "constant",  foreground: c("--cm-constant").replace("#","")  },
       { token: "string",    foreground: c("--cm-string").replace("#","")    },
       { token: "number",    foreground: c("--cm-number").replace("#","")    },
@@ -134,7 +189,7 @@ const englishEditor = monaco.editor.create(
 
 const hindiEditor = monaco.editor.create(
   document.getElementById("hindi-editor"),
-  { ...sharedOptions(HINDI_LANG_ID, '"Noto Sans Devanagari", monospace'), value: "" }
+  { ...sharedOptions(HINDI_LANG_ID, '"JetBrains Mono", "Courier New", monospace'), value: "" }
 );
 
 // ---- getters / setters --------------------------------------------------
@@ -168,6 +223,7 @@ async function syncToHindi() {
   try {
     const result = await translateToHindi(code, sessionId);
     sessionId = result.sessionId;
+    lastTranslationMap = result.translationMap;
     setHindiCode(result.hindiCode);
     setStatus("ready");
   } catch (err) { reportError(err); }
@@ -217,13 +273,13 @@ async function runCode() {
       englishOutputPanel.textContent = result.englishOutput;
       hindiOutputPanel.textContent   = result.hindiOutput;
       setErrorPanel(englishErrorWrap, englishErrorPanel, result.englishError, "No errors");
-      setErrorPanel(hindiErrorWrap,   hindiErrorPanel,   result.hindiError,   "कोई त्रुटि नहीं");
+      setErrorPanel(hindiErrorWrap,   hindiErrorPanel,   result.hindiError,   "koi galatiyan nahi");
     } else {
       const r = await executeEnglish(getEnglishCode());
       englishOutputPanel.textContent = r.output;
       setErrorPanel(englishErrorWrap, englishErrorPanel, r.error, "No errors");
-      hindiOutputPanel.textContent = "(हिंदी पैनल खाली है — पहले टाइप करें)";
-      setErrorPanel(hindiErrorWrap, hindiErrorPanel, "", "कोई त्रुटि नहीं");
+      hindiOutputPanel.textContent = "(Hindi panel khaali hai — pehle type kare)";
+      setErrorPanel(hindiErrorWrap, hindiErrorPanel, "", "koi galatiyan nahi");
     }
     setStatus("ready");
   } catch (err) { reportError(err); }
@@ -238,12 +294,18 @@ function resetAll() {
   sessionId = null;
   syncLock  = false;
   lastEditedPanel = "english";
+  lastTranslationMap = null;
   setEnglishCode(DEFAULT_ENGLISH);
   setHindiCode("");
   hindiOutputPanel.textContent  = "";
   englishOutputPanel.textContent = "";
   setErrorPanel(englishErrorWrap, englishErrorPanel, "", "No errors");
-  setErrorPanel(hindiErrorWrap,   hindiErrorPanel,   "", "कोई त्रुटि नहीं");
+  setErrorPanel(hindiErrorWrap,   hindiErrorPanel,   "", "koi galatiyan nahi");
+
+  if (!workspace.classList.contains("hide-keymap")) {
+    renderLlmTable(lastTranslationMap);
+  }
+
   setStatus("ready");
 }
 
@@ -269,8 +331,7 @@ themeToggle.addEventListener("click", () => {
   applyTheme(currentTheme === "dark" ? "light" : "dark");
 });
 
-const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-applyTheme(prefersDark ? "dark" : "light");
+applyTheme("light");
 
 // ---- bootstrap ----------------------------------------------------------
 syncToHindi();
