@@ -1,21 +1,6 @@
-// Shared nvim-like syntax highlighting for both editors: one HighlightStyle,
-// one set of CSS variables (see style.css) — a token category (keyword,
-// function, string, ...) renders in the same color whether it's read from
-// the English panel (real Python grammar via @codemirror/lang-python) or
-// the Hindi panel (custom tokenizer in hindi-mode.js). Never touches the DOM
-// beyond the decorations CodeMirror itself manages.
-//
-// Bare specifier imports — resolved via the importmap in index.html to exact
-// pinned versions. Every file on this page must use bare specifiers (never
-// full esm.sh URLs) so the browser module cache de-duplicates correctly.
-// Tag objects from @lezer/highlight are compared by identity; two instances
-// from different URL strings means HighlightStyle silently matches nothing.
+// Pure data — no editor-library imports.
+// Consumed by editor.js (Monaco token colors) and hindi-mode.js (tokenizer vocabulary).
 
-import { HighlightStyle, syntaxTree } from "@codemirror/language";
-import { tags as t } from "@lezer/highlight";
-import { ViewPlugin, Decoration, MatchDecorator } from "@codemirror/view";
-
-// Python keyword/builtin vocabulary, mirrored from core/constants.py.
 export const KEYWORD_MAP = {
   def: "काम",
   if: "अगर",
@@ -94,71 +79,18 @@ export const BUILTIN_MAP = {
 
 export const CONSTANT_MAP = { True: "सच", False: "झूठ", None: "कुछनहीं" };
 
-export const HINDI_KEYWORDS = new Set(Object.values(KEYWORD_MAP));
-export const HINDI_BUILTINS = new Set(Object.values(BUILTIN_MAP));
+export const HINDI_KEYWORDS  = new Set(Object.values(KEYWORD_MAP));
+export const HINDI_BUILTINS  = new Set(Object.values(BUILTIN_MAP));
 export const HINDI_CONSTANTS = new Set(Object.values(CONSTANT_MAP));
 export const ENGLISH_BUILTINS = new Set(Object.keys(BUILTIN_MAP));
 
-// One color per token category, shared by both languages. Actual hex
-// values live in style.css as --cm-* custom properties so the existing
-// light/dark toggle applies to code coloring automatically.
-export const pythonHighlightStyle = HighlightStyle.define([
-  {
-    tag: [t.keyword, t.controlKeyword, t.operatorKeyword, t.moduleKeyword, t.definitionKeyword],
-    color: "var(--cm-keyword)",
-    fontWeight: "600",
-  },
-  {
-    tag: [
-      t.function(t.variableName),
-      t.function(t.definition(t.variableName)),
-      t.definition(t.function(t.variableName)),
-    ],
-    color: "var(--cm-function)",
-  },
-  { tag: t.standard(t.name), color: "var(--cm-builtin)" },
-  { tag: [t.className, t.definition(t.className)], color: "var(--cm-class)" },
-  { tag: [t.propertyName, t.definition(t.propertyName)], color: "var(--cm-property)" },
-  { tag: [t.bool, t.null, t.atom], color: "var(--cm-constant)" },
-  { tag: t.string, color: "var(--cm-string)" },
-  { tag: [t.number, t.integer, t.float], color: "var(--cm-number)" },
-  {
-    tag: [t.comment, t.lineComment, t.blockComment, t.docComment],
-    color: "var(--cm-comment)",
-    fontStyle: "italic",
-  },
-  { tag: t.meta, color: "var(--cm-decorator)", fontStyle: "italic" },
-  { tag: t.operator, color: "var(--cm-operator)" },
-  { tag: [t.punctuation, t.bracket, t.separator], color: "var(--cm-punctuation)" },
-  { tag: t.variableName, color: "var(--cm-variable)" },
-]);
-
-function escapeRegExp(word) {
-  return word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-// The real Python grammar (@codemirror/lang-python) has no notion of
-// "builtin" — print/len/range parse as plain function calls, same as any
-// user-defined name. This decorates whole-word matches of known builtin
-// names with --cm-builtin so the English panel's builtins match color with
-// the Hindi panel's (which the hand-written tokenizer already tags natively).
-export function highlightBuiltins(names) {
-  const pattern = new RegExp(`\\b(?:${[...names].map(escapeRegExp).join("|")})\\b`, "g");
-  const matcher = new MatchDecorator({
-    regexp: pattern,
-    decoration: (_match, view, pos) => {
-      const node = syntaxTree(view.state).resolveInner(pos, 1);
-      if (node.name !== "VariableName") return null;
-      return Decoration.mark({ attributes: { style: "color: var(--cm-builtin)" } });
-    },
-  });
-  return ViewPlugin.define(
-    (view) => ({
-      decorations: matcher.createDeco(view),
-      update(update) {
-        this.decorations = matcher.updateDeco(update, this.decorations);
-      },
-    }),
-    { decorations: (v) => v.decorations }
-  );
+// CSS-variable color tokens — same names as style.css --cm-* props.
+// editor.js reads these to build Monaco theme rules; style.css owns the
+// actual hex values so light/dark toggling stays in one place.
+// Monaco themes require literal color strings, so we resolve the CSS vars
+// at runtime from a temporary element rather than hardcoding hex here.
+export function resolveCssVar(name) {
+  return getComputedStyle(document.documentElement)
+    .getPropertyValue(name)
+    .trim();
 }

@@ -184,25 +184,15 @@ body {
   border: 1px solid var(--border);
   border-radius: 8px;
   overflow: hidden;
+  /* Monaco requires a positioned container with explicit dimensions */
+  position: relative;
 }
 
-.editor-mount .cm-editor {
-  height: 100%;
-  font-size: 14px;
-}
-
-.editor-mount .cm-scroller {
-  overflow: auto;
-}
-
-.hindi-panel .cm-content,
-.hindi-panel .cm-editor {
-  font-family: "Noto Sans Devanagari", monospace;
-}
-
-.english-panel .cm-content,
-.english-panel .cm-editor {
-  font-family: "JetBrains Mono", "Courier New", monospace;
+/* Monaco injects a .monaco-editor div — make it fill the mount */
+.editor-mount .monaco-editor,
+.editor-mount .monaco-editor-background,
+.editor-mount .monaco-editor .overflow-guard {
+  border-radius: 7px;
 }
 
 .controls {

@@ -11,44 +11,6 @@
     rel="stylesheet"
   />
   <link rel="stylesheet" href="style.css" />
-
-  <!--
-    Import map: locks every CM6 and lezer package to one exact version.
-
-    Without this, esm.sh resolves each package's sub-dependencies
-    independently. view@X internally bundles state@Y, language@X internally
-    bundles state@Z — different URL = different module instance in the browser
-    module cache. CM6 compares internal objects by identity (===), so two
-    instances of @codemirror/state means view and language can't share
-    transactions, causing the "can't access property length, i is undefined"
-    crash in findPos/domAtPos. Tag objects in @lezer/highlight suffer the same
-    problem: HighlightStyle built from instance A won't match tokens tagged by
-    instance B, so syntax colors silently disappear.
-
-    The importmap intercepts ALL bare-specifier imports across every JS file
-    loaded by this page — our files AND the code esm.sh generates internally —
-    routing them to the single versioned URL. The browser then serves one
-    cached module for every importer, guaranteeing identity equality.
-
-    Version set: the 2024-08-22 coordinated CM6 release batch, which is the
-    latest batch before @codemirror/lang-python@6.1.6 locked its peer deps.
-    @lezer/* are pinned to the exact versions those CM6 packages resolve to.
-  -->
-  <script type="importmap">
-  {
-    "imports": {
-      "@codemirror/state":        "https://esm.sh/@codemirror/state@6.4.1",
-      "@codemirror/view":         "https://esm.sh/@codemirror/view@6.33.0",
-      "@codemirror/language":     "https://esm.sh/@codemirror/language@6.10.3",
-      "@codemirror/commands":     "https://esm.sh/@codemirror/commands@6.6.0",
-      "@codemirror/lang-python":  "https://esm.sh/@codemirror/lang-python@6.1.6",
-      "@lezer/highlight":         "https://esm.sh/@lezer/highlight@1.2.1",
-      "@lezer/lr":                "https://esm.sh/@lezer/lr@1.4.2",
-      "@lezer/common":            "https://esm.sh/@lezer/common@1.2.3",
-      "@lezer/python":            "https://esm.sh/@lezer/python@1.1.14"
-    }
-  }
-  </script>
 </head>
 <body>
   <header class="app-header">
@@ -98,6 +60,20 @@
     </div>
   </section>
 
-  <script type="module" src="editor.js"></script>
+  <!--
+    Monaco loads via its own AMD loader (require.js bundled inside it).
+    Set the base path before the loader script runs, then boot editor.js
+    once Monaco's define() infrastructure is ready.
+    No importmap, no ESM version juggling — Monaco is one self-contained bundle.
+  -->
+  <script>var require = { paths: { vs: "https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs" } };</script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.0/min/vs/loader.js"></script>
+  <script>
+    require(["vs/editor/editor.main"], function () {
+      // Monaco is fully loaded — dynamically import our module so it can
+      // access window.monaco which the AMD loader just populated.
+      import("./editor.js");
+    });
+  </script>
 </body>
 </html>

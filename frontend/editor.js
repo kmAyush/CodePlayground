@@ -1,38 +1,13 @@
-// Panel setup, debounce logic, sync lock, run button, output display.
-// Imports from api.js only — never talks to the backend directly.
-//
-// All CM6 imports use bare specifiers — the importmap in index.html routes
-// them to pinned esm.sh URLs so every file in this page shares exactly one
-// module instance per package. Never mix bare specifiers with full esm.sh
-// URLs in the same page; the browser treats different URL strings as
-// different module identities even when the content is identical.
+// Panel setup, Monaco editor instances, debounce, sync, run/reset buttons.
+// window.monaco is guaranteed populated before this module loads
+// (index.html's require() callback calls import("./editor.js") only after
+// vs/editor/editor.main has fully resolved).
 
-import { EditorState } from "@codemirror/state";
-import {
-  EditorView,
-  keymap,
-  lineNumbers,
-  highlightActiveLine,
-  highlightActiveLineGutter,
-} from "@codemirror/view";
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-  indentWithTab,
-} from "@codemirror/commands";
-import {
-  indentOnInput,
-  indentUnit,
-  bracketMatching,
-  syntaxHighlighting,
-} from "@codemirror/language";
-import { python } from "@codemirror/lang-python";
-
-import { hindiSupport } from "./hindi-mode.js";
-import { pythonHighlightStyle, highlightBuiltins, ENGLISH_BUILTINS } from "./theme.js";
+import { registerHindiLanguage, HINDI_LANG_ID } from "./hindi-mode.js";
+import { resolveCssVar, ENGLISH_BUILTINS } from "./theme.js";
 import { translateToHindi, translateToEnglish, executeHindi, executeEnglish } from "./api.js";
 
+const monaco = window.monaco;
 const DEBOUNCE_MS = 800;
 
 const DEFAULT_ENGLISH = `def greet(name):
@@ -44,107 +19,148 @@ for name in ["Asha", "Ravi"]:
     greet(name)
 `;
 
-// ---- module state -----------------------------------------------------
-let sessionId = null;
-let syncLock = false;
-let debounceTimer = null;
-let lastEditedPanel = "english"; // "hindi" | "english" — drives the Sync button
-
 // ---- DOM refs -----------------------------------------------------------
-const hindiMount = document.getElementById("hindi-editor");
-const englishMount = document.getElementById("english-editor");
-const runBtn = document.getElementById("run-btn");
-const resetBtn = document.getElementById("reset-btn");
-const syncBtn = document.getElementById("sync-btn");
-const themeToggle = document.getElementById("theme-toggle");
-const statusIndicator = document.getElementById("status-indicator");
-const hindiOutputPanel = document.getElementById("hindi-output");
-const englishOutputPanel = document.getElementById("english-output");
-const hindiErrorPanel = document.getElementById("hindi-error");
+const runBtn            = document.getElementById("run-btn");
+const resetBtn          = document.getElementById("reset-btn");
+const syncBtn           = document.getElementById("sync-btn");
+const themeToggle       = document.getElementById("theme-toggle");
+const statusIndicator   = document.getElementById("status-indicator");
+const hindiOutputPanel  = document.getElementById("hindi-output");
+const englishOutputPanel= document.getElementById("english-output");
+const hindiErrorPanel   = document.getElementById("hindi-error");
 const englishErrorPanel = document.getElementById("english-error");
-const hindiErrorWrap = document.getElementById("hindi-error-wrap");
-const englishErrorWrap = document.getElementById("english-error-wrap");
+const hindiErrorWrap    = document.getElementById("hindi-error-wrap");
+const englishErrorWrap  = document.getElementById("english-error-wrap");
+
+// ---- module state -------------------------------------------------------
+let sessionId       = null;
+let syncLock        = false;
+let debounceTimer   = null;
+let lastEditedPanel = "english";
+let currentTheme    = "light"; // track so we can rebuild Monaco theme on toggle
 
 // ---- status pill --------------------------------------------------------
 function setStatus(state, message) {
   statusIndicator.dataset.state = state;
-  statusIndicator.textContent = message ?? { ready: "Ready", busy: "Syncing…", running: "Running…", error: "Error" }[state];
+  statusIndicator.textContent = message ??
+    { ready: "Ready", busy: "Syncing…", running: "Running…", error: "Error" }[state];
 }
-
 function reportError(err) {
   console.error(err);
   setStatus("error", `Error: ${err.message}`);
 }
 
-// ---- CodeMirror setup -----------------------------------------------------
-function makeUpdateListener(onDirty) {
-  return EditorView.updateListener.of((update) => {
-    if (update.docChanged && !syncLock) onDirty();
-  });
-}
-
-const sharedExtensions = [
-  lineNumbers(),
-  highlightActiveLine(),
-  highlightActiveLineGutter(),
-  history(),
-  indentOnInput(),
-  indentUnit.of("    "),
-  bracketMatching(),
-  keymap.of([...defaultKeymap, ...historyKeymap, indentWithTab]),
-  EditorView.lineWrapping,
-];
-
-const hindiView = new EditorView({
-  state: EditorState.create({
-    doc: "",
-    extensions: [
-      ...sharedExtensions,
-      ...hindiSupport(),
-      makeUpdateListener(onHindiEdited),
+// ---- Monaco theme -------------------------------------------------------
+// Monaco themes need explicit hex/rgb values — CSS variables don't work
+// inside defineTheme(). We resolve them from the document at theme-apply
+// time so style.css remains the single source of truth for colors.
+function buildMonacoTheme(variant) {
+  // variant: "light" | "dark"
+  const c = (name) => resolveCssVar(name) || "#888888";
+  return {
+    base: variant === "dark" ? "vs-dark" : "vs",
+    inherit: true, // inherit base token rules, then override below
+    rules: [
+      { token: "keyword",   foreground: c("--cm-keyword").replace("#",""),   fontStyle: "bold" },
+      { token: "builtin",   foreground: c("--cm-builtin").replace("#","")   },
+      { token: "constant",  foreground: c("--cm-constant").replace("#","")  },
+      { token: "string",    foreground: c("--cm-string").replace("#","")    },
+      { token: "number",    foreground: c("--cm-number").replace("#","")    },
+      { token: "comment",   foreground: c("--cm-comment").replace("#",""),   fontStyle: "italic" },
+      { token: "decorator", foreground: c("--cm-decorator").replace("#",""), fontStyle: "italic" },
+      { token: "operator",  foreground: c("--cm-operator").replace("#","")  },
+      { token: "delimiter", foreground: c("--cm-punctuation").replace("#","")},
+      { token: "identifier",foreground: c("--cm-variable").replace("#","")  },
+      // English panel — Monaco's built-in Python token names
+      { token: "keyword.python",          foreground: c("--cm-keyword").replace("#",""),  fontStyle: "bold" },
+      { token: "string.python",           foreground: c("--cm-string").replace("#","")   },
+      { token: "number.python",           foreground: c("--cm-number").replace("#","")   },
+      { token: "comment.python",          foreground: c("--cm-comment").replace("#",""),  fontStyle: "italic" },
+      { token: "type.identifier.python",  foreground: c("--cm-class").replace("#","")    },
+      { token: "entity.name.function",    foreground: c("--cm-function").replace("#","") },
     ],
-  }),
-  parent: hindiMount,
-});
-
-const englishView = new EditorView({
-  state: EditorState.create({
-    doc: DEFAULT_ENGLISH,
-    extensions: [
-      ...sharedExtensions,
-      python(),
-      // No { fallback: true } — python() installs defaultHighlightStyle which
-      // would suppress a fallback style. We want pythonHighlightStyle to always
-      // win and apply our CSS-variable-based colors.
-      syntaxHighlighting(pythonHighlightStyle),
-      highlightBuiltins(ENGLISH_BUILTINS),
-      makeUpdateListener(onEnglishEdited),
-    ],
-  }),
-  parent: englishMount,
-});
-
-function getHindiCode() {
-  return hindiView.state.doc.toString();
+    colors: {
+      "editor.background":           c("--surface"),
+      "editor.foreground":           c("--text"),
+      "editorLineNumber.foreground": c("--text-muted"),
+      "editor.lineHighlightBackground": variant === "dark" ? "#ffffff0a" : "#0000000a",
+      "editorCursor.foreground":     c("--accent"),
+      "editor.selectionBackground":  variant === "dark" ? "#6d8bff33" : "#4f6df533",
+      "editorBracketMatch.background": variant === "dark" ? "#6d8bff22" : "#4f6df522",
+      "editorBracketMatch.border":   c("--accent"),
+    },
+  };
 }
 
-function getEnglishCode() {
-  return englishView.state.doc.toString();
+function applyMonacoTheme(variant) {
+  monaco.editor.defineTheme("playground-theme", buildMonacoTheme(variant));
+  monaco.editor.setTheme("playground-theme");
 }
 
-function setHindiCode(code) {
-  syncLock = true;
-  hindiView.dispatch({ changes: { from: 0, to: hindiView.state.doc.length, insert: code } });
-  syncLock = false;
+// ---- shared editor options ----------------------------------------------
+function sharedOptions(language, fontFamily) {
+  return {
+    language,
+    theme: "playground-theme",
+    fontFamily,
+    fontSize: 14,
+    lineHeight: 22,
+    minimap: { enabled: false },
+    scrollBeyondLastLine: false,
+    wordWrap: "on",
+    automaticLayout: true,   // resizes with the container — no ResizeObserver needed
+    tabSize: 4,
+    insertSpaces: true,
+    lineNumbers: "on",
+    folding: false,           // keep it simple for a playground
+    renderLineHighlight: "line",
+    bracketPairColorization: { enabled: false }, // we color brackets ourselves
+    overviewRulerLanes: 0,
+    scrollbar: { verticalScrollbarSize: 6, horizontalScrollbarSize: 6 },
+  };
 }
+
+// ---- register Hindi language + define initial theme ---------------------
+registerHindiLanguage();
+// Theme must exist before editors are created; applyTheme() below calls this
+// again after CSS vars are set by applyTheme().
+applyMonacoTheme("light");
+
+// ---- create editors -----------------------------------------------------
+const englishEditor = monaco.editor.create(
+  document.getElementById("english-editor"),
+  { ...sharedOptions("python", '"JetBrains Mono", "Courier New", monospace'), value: DEFAULT_ENGLISH }
+);
+
+const hindiEditor = monaco.editor.create(
+  document.getElementById("hindi-editor"),
+  { ...sharedOptions(HINDI_LANG_ID, '"Noto Sans Devanagari", monospace'), value: "" }
+);
+
+// ---- getters / setters --------------------------------------------------
+const getEnglishCode = () => englishEditor.getValue();
+const getHindiCode   = () => hindiEditor.getValue();
 
 function setEnglishCode(code) {
   syncLock = true;
-  englishView.dispatch({ changes: { from: 0, to: englishView.state.doc.length, insert: code } });
+  englishEditor.setValue(code);
+  syncLock = false;
+}
+function setHindiCode(code) {
+  syncLock = true;
+  hindiEditor.setValue(code);
   syncLock = false;
 }
 
-// ---- sync logic -----------------------------------------------------------
+// ---- change listeners ---------------------------------------------------
+englishEditor.onDidChangeModelContent(() => {
+  if (!syncLock) { lastEditedPanel = "english"; scheduleSync(syncToHindi); }
+});
+hindiEditor.onDidChangeModelContent(() => {
+  if (!syncLock) { lastEditedPanel = "hindi"; scheduleSync(syncToEnglish); }
+});
+
+// ---- sync logic ---------------------------------------------------------
 async function syncToHindi() {
   const code = getEnglishCode();
   if (!code.trim()) return;
@@ -154,9 +170,7 @@ async function syncToHindi() {
     sessionId = result.sessionId;
     setHindiCode(result.hindiCode);
     setStatus("ready");
-  } catch (err) {
-    reportError(err);
-  }
+  } catch (err) { reportError(err); }
 }
 
 async function syncToEnglish() {
@@ -175,10 +189,7 @@ async function syncToEnglish() {
         setEnglishCode(retry.englishCode);
         setStatus("ready");
         return;
-      } catch (retryErr) {
-        reportError(retryErr);
-        return;
-      }
+      } catch (retryErr) { reportError(retryErr); return; }
     }
     reportError(err);
   }
@@ -189,17 +200,7 @@ function scheduleSync(fn) {
   debounceTimer = setTimeout(fn, DEBOUNCE_MS);
 }
 
-function onHindiEdited() {
-  lastEditedPanel = "hindi";
-  scheduleSync(syncToEnglish);
-}
-
-function onEnglishEdited() {
-  lastEditedPanel = "english";
-  scheduleSync(syncToHindi);
-}
-
-// ---- run / reset / sync buttons -------------------------------------------
+// ---- run / reset / sync buttons -----------------------------------------
 function setErrorPanel(wrap, panel, errorText, emptyText) {
   const hasError = Boolean(errorText);
   panel.textContent = hasError ? errorText : emptyText;
@@ -214,20 +215,19 @@ async function runCode() {
     if (sessionId) {
       const result = await executeHindi(getHindiCode(), sessionId);
       englishOutputPanel.textContent = result.englishOutput;
-      hindiOutputPanel.textContent = result.hindiOutput;
+      hindiOutputPanel.textContent   = result.hindiOutput;
       setErrorPanel(englishErrorWrap, englishErrorPanel, result.englishError, "No errors");
-      setErrorPanel(hindiErrorWrap, hindiErrorPanel, result.hindiError, "कोई त्रुटि नहीं");
+      setErrorPanel(hindiErrorWrap,   hindiErrorPanel,   result.hindiError,   "कोई त्रुटि नहीं");
     } else {
-      const englishResult = await executeEnglish(getEnglishCode());
-      englishOutputPanel.textContent = englishResult.output;
-      setErrorPanel(englishErrorWrap, englishErrorPanel, englishResult.error, "No errors");
+      const r = await executeEnglish(getEnglishCode());
+      englishOutputPanel.textContent = r.output;
+      setErrorPanel(englishErrorWrap, englishErrorPanel, r.error, "No errors");
       hindiOutputPanel.textContent = "(हिंदी पैनल खाली है — पहले टाइप करें)";
       setErrorPanel(hindiErrorWrap, hindiErrorPanel, "", "कोई त्रुटि नहीं");
     }
     setStatus("ready");
-  } catch (err) {
-    reportError(err);
-  } finally {
+  } catch (err) { reportError(err); }
+  finally {
     runBtn.disabled = false;
     runBtn.classList.remove("is-busy");
   }
@@ -236,43 +236,41 @@ async function runCode() {
 function resetAll() {
   clearTimeout(debounceTimer);
   sessionId = null;
-  syncLock = false;
+  syncLock  = false;
   lastEditedPanel = "english";
   setEnglishCode(DEFAULT_ENGLISH);
   setHindiCode("");
-  hindiOutputPanel.textContent = "";
+  hindiOutputPanel.textContent  = "";
   englishOutputPanel.textContent = "";
   setErrorPanel(englishErrorWrap, englishErrorPanel, "", "No errors");
-  setErrorPanel(hindiErrorWrap, hindiErrorPanel, "", "कोई त्रुटि नहीं");
+  setErrorPanel(hindiErrorWrap,   hindiErrorPanel,   "", "कोई त्रुटि नहीं");
   setStatus("ready");
 }
 
 function forceSyncNow() {
   clearTimeout(debounceTimer);
-  if (lastEditedPanel === "hindi") {
-    syncToEnglish();
-  } else {
-    syncToHindi();
-  }
+  lastEditedPanel === "hindi" ? syncToEnglish() : syncToHindi();
 }
 
-runBtn.addEventListener("click", runCode);
+runBtn.addEventListener("click",   runCode);
 resetBtn.addEventListener("click", resetAll);
-syncBtn.addEventListener("click", forceSyncNow);
+syncBtn.addEventListener("click",  forceSyncNow);
 
-// ---- theme toggle -----------------------------------------------------
+// ---- theme toggle -------------------------------------------------------
 function applyTheme(theme) {
+  currentTheme = theme;
   document.documentElement.dataset.theme = theme;
   themeToggle.textContent = theme === "dark" ? "☀ Light" : "🌙 Dark";
+  // CSS vars are now updated — rebuild Monaco theme so colors reflect them.
+  applyMonacoTheme(theme);
 }
 
 themeToggle.addEventListener("click", () => {
-  const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
-  applyTheme(next);
+  applyTheme(currentTheme === "dark" ? "light" : "dark");
 });
 
 const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
 applyTheme(prefersDark ? "dark" : "light");
 
-// ---- initial bootstrap -----------------------------------------------------
+// ---- bootstrap ----------------------------------------------------------
 syncToHindi();
