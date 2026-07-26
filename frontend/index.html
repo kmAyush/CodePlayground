@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>हिंदी Python Playground</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Noto+Sans+Devanagari:wght@400;500;600&display=swap"
+    rel="stylesheet"
+  />
+  <link rel="stylesheet" href="style.css" />
+
+  <!--
+    Import map: locks every CM6 and lezer package to one exact version.
+
+    Without this, esm.sh resolves each package's sub-dependencies
+    independently. view@X internally bundles state@Y, language@X internally
+    bundles state@Z — different URL = different module instance in the browser
+    module cache. CM6 compares internal objects by identity (===), so two
+    instances of @codemirror/state means view and language can't share
+    transactions, causing the "can't access property length, i is undefined"
+    crash in findPos/domAtPos. Tag objects in @lezer/highlight suffer the same
+    problem: HighlightStyle built from instance A won't match tokens tagged by
+    instance B, so syntax colors silently disappear.
+
+    The importmap intercepts ALL bare-specifier imports across every JS file
+    loaded by this page — our files AND the code esm.sh generates internally —
+    routing them to the single versioned URL. The browser then serves one
+    cached module for every importer, guaranteeing identity equality.
+
+    Version set: the 2024-08-22 coordinated CM6 release batch, which is the
+    latest batch before @codemirror/lang-python@6.1.6 locked its peer deps.
+    @lezer/* are pinned to the exact versions those CM6 packages resolve to.
+  -->
+  <script type="importmap">
+  {
+    "imports": {
+      "@codemirror/state":        "https://esm.sh/@codemirror/state@6.4.1",
+      "@codemirror/view":         "https://esm.sh/@codemirror/view@6.33.0",
+      "@codemirror/language":     "https://esm.sh/@codemirror/language@6.10.3",
+      "@codemirror/commands":     "https://esm.sh/@codemirror/commands@6.6.0",
+      "@codemirror/lang-python":  "https://esm.sh/@codemirror/lang-python@6.1.6",
+      "@lezer/highlight":         "https://esm.sh/@lezer/highlight@1.2.1",
+      "@lezer/lr":                "https://esm.sh/@lezer/lr@1.4.2",
+      "@lezer/common":            "https://esm.sh/@lezer/common@1.2.3",
+      "@lezer/python":            "https://esm.sh/@lezer/python@1.1.14"
+    }
+  }
+  </script>
+</head>
+<body>
+  <header class="app-header">
+    <h1>🔵 हिंदी Python Playground</h1>
+    <button id="theme-toggle" class="icon-btn" type="button">🌙 Dark</button>
+  </header>
+
+  <main class="panels code-panels">
+    <section class="panel">
+      <h2 class="panel-title">English Panel</h2>
+      <div id="english-editor" class="editor-mount english-panel"></div>
+    </section>
+    <section class="panel">
+      <h2 class="panel-title">Hindi Panel</h2>
+      <div id="hindi-editor" class="editor-mount hindi-panel"></div>
+    </section>
+  </main>
+
+  <div class="controls">
+    <div class="controls-buttons">
+      <button id="run-btn" class="btn btn-primary" type="button">▶ चलाओ / Run</button>
+      <button id="reset-btn" class="btn" type="button">⟳ Reset</button>
+      <button id="sync-btn" class="btn" type="button">↔ Sync</button>
+    </div>
+    <span id="status-indicator" class="status-pill" data-state="ready">Ready</span>
+  </div>
+
+  <section class="panels output-panels">
+    <div class="panel">
+      <h2 class="panel-title">English Output</h2>
+      <pre id="english-output" class="output-panel english-output"></pre>
+    </div>
+    <div class="panel">
+      <h2 class="panel-title">Hindi Output</h2>
+      <pre id="hindi-output" class="output-panel hindi-output"></pre>
+    </div>
+  </section>
+
+  <section class="panels error-panels">
+    <div class="panel error-panel-wrap" id="english-error-wrap">
+      <h2 class="panel-title">English Errors</h2>
+      <pre id="english-error" class="output-panel english-error"></pre>
+    </div>
+    <div class="panel error-panel-wrap" id="hindi-error-wrap">
+      <h2 class="panel-title">Hindi Errors</h2>
+      <pre id="hindi-error" class="output-panel hindi-output hindi-error"></pre>
+    </div>
+  </section>
+
+  <script type="module" src="editor.js"></script>
+</body>
+</html>

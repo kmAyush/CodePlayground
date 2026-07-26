@@ -1,0 +1,18 @@
+[project]
+name = "hindi-playground"
+version = "0.1.0"
+description = "Add your description here"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi>=0.140.0",
+    "python-dotenv>=1.2.2",
+    "sarvamai>=0.1.28",
+    "uvicorn>=0.51.0",
+]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.1.1",
+    "pytest-asyncio>=1.4.0",
+]

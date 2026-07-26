@@ -1,0 +1,348 @@
+:root {
+  --bg: #f5f6f8;
+  --surface: #ffffff;
+  --border: #d8dce3;
+  --text: #1a1d23;
+  --text-muted: #5b6270;
+  --accent: #4f6df5;
+  --accent-text: #ffffff;
+  --success: #16a34a;
+  --danger: #dc2626;
+  --danger-bg: #fef2f2;
+
+  --cm-keyword: #a626a4;
+  --cm-function: #4078f2;
+  --cm-builtin: #0184bc;
+  --cm-class: #c18401;
+  --cm-property: #e45649;
+  --cm-constant: #986801;
+  --cm-string: #50a14f;
+  --cm-number: #986801;
+  --cm-comment: #a0a1a7;
+  --cm-decorator: #c18401;
+  --cm-operator: #383a42;
+  --cm-punctuation: #696c77;
+  --cm-variable: #1a1d23;
+
+  --output-max-height: 200px;
+  --error-max-height: 160px;
+}
+
+:root[data-theme="dark"] {
+  --bg: #14161c;
+  --surface: #1c1f27;
+  --border: #2c303b;
+  --text: #e6e8ef;
+  --text-muted: #9aa0ae;
+  --accent: #6d8bff;
+  --accent-text: #0d1117;
+  --success: #4ade80;
+  --danger: #f87171;
+  --danger-bg: #2a1618;
+
+  --cm-keyword: #c678dd;
+  --cm-function: #61afef;
+  --cm-builtin: #56b6c2;
+  --cm-class: #e5c07b;
+  --cm-property: #e06c75;
+  --cm-constant: #d19a66;
+  --cm-string: #98c379;
+  --cm-number: #d19a66;
+  --cm-comment: #7f848e;
+  --cm-decorator: #e5c07b;
+  --cm-operator: #56b6c2;
+  --cm-punctuation: #abb2bf;
+  --cm-variable: #e6e8ef;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #14161c;
+    --surface: #1c1f27;
+    --border: #2c303b;
+    --text: #e6e8ef;
+    --text-muted: #9aa0ae;
+    --accent: #6d8bff;
+    --accent-text: #0d1117;
+    --success: #4ade80;
+    --danger: #f87171;
+    --danger-bg: #2a1618;
+
+    --cm-keyword: #c678dd;
+    --cm-function: #61afef;
+    --cm-builtin: #56b6c2;
+    --cm-class: #e5c07b;
+    --cm-property: #e06c75;
+    --cm-constant: #d19a66;
+    --cm-string: #98c379;
+    --cm-number: #d19a66;
+    --cm-comment: #7f848e;
+    --cm-decorator: #e5c07b;
+    --cm-operator: #56b6c2;
+    --cm-punctuation: #abb2bf;
+    --cm-variable: #e6e8ef;
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  max-width: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: "JetBrains Mono", "Courier New", monospace;
+  padding: 16px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app-header {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.app-header h1 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.icon-btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 14px;
+  cursor: pointer;
+  font: inherit;
+}
+
+.icon-btn:hover {
+  border-color: var(--accent);
+}
+
+.panels {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Code panels take up whatever vertical space remains after the header,
+   controls, output row and error row have taken theirs. */
+.code-panels {
+  flex: 1 1 420px;
+  min-height: 420px;
+}
+
+@media (max-width: 720px) {
+  .panels {
+    grid-template-columns: 1fr;
+  }
+
+  .code-panels {
+    grid-template-rows: 1fr 1fr;
+  }
+}
+
+.panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-title {
+  flex: 0 0 auto;
+  margin: 0 0 8px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.editor-mount {
+  flex: 1 1 auto;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.editor-mount .cm-editor {
+  height: 100%;
+  font-size: 14px;
+}
+
+.editor-mount .cm-scroller {
+  overflow: auto;
+}
+
+.hindi-panel .cm-content,
+.hindi-panel .cm-editor {
+  font-family: "Noto Sans Devanagari", monospace;
+}
+
+.english-panel .cm-content,
+.english-panel .cm-editor {
+  font-family: "JetBrains Mono", "Courier New", monospace;
+}
+
+.controls {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.controls-buttons {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.btn {
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px 18px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.btn:hover {
+  border-color: var(--accent);
+}
+
+.btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: var(--accent-text);
+  border-color: var(--accent);
+  font-weight: 600;
+}
+
+.btn.is-busy {
+  position: relative;
+}
+
+.btn.is-busy::after {
+  content: "";
+  width: 12px;
+  height: 12px;
+  margin-left: 8px;
+  display: inline-block;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  vertical-align: middle;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.status-pill {
+  padding: 6px 14px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.status-pill[data-state="ready"] {
+  color: var(--success);
+  border-color: var(--success);
+}
+
+.status-pill[data-state="busy"],
+.status-pill[data-state="running"] {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.status-pill[data-state="error"] {
+  color: var(--danger);
+  border-color: var(--danger);
+}
+
+/* Output row: reasonable, capped height — this is a result glance, not
+   another editor. Scrolls internally when content overflows. */
+.output-panels {
+  flex: 0 0 auto;
+}
+
+.output-panels .panel {
+  max-height: var(--output-max-height);
+}
+
+/* Error row: sits below output, same reasonable-height treatment, styled
+   to read as an alert rather than plain output. */
+.error-panels {
+  flex: 0 0 auto;
+}
+
+.error-panels .panel {
+  max-height: var(--error-max-height);
+  border-color: var(--border);
+}
+
+.error-panel-wrap.has-error {
+  border-color: var(--danger);
+  background: var(--danger-bg);
+}
+
+.output-panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding: 10px;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: "JetBrains Mono", monospace;
+  line-height: 1.6;
+  overflow-y: auto;
+  color: var(--success);
+}
+
+.hindi-output {
+  font-family: "Noto Sans Devanagari", "JetBrains Mono", monospace;
+}
+
+.english-error,
+.hindi-error {
+  color: var(--text-muted);
+}
+
+.error-panel-wrap.has-error .output-panel {
+  color: var(--danger);
+}
