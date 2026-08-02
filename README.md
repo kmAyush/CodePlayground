@@ -12,6 +12,8 @@ to follow.
 
 ## How it works
 
+![diagram](https://cdn.gamma.app/lud940rpoko90pi/c878e76c8ab741fda737524827df64e8/original/parsing-overview.png)
+
 Your transliterated-Hindi code is parsed into a Python AST, uses LLM (in this case Sarvam 30b to generate English translate) 
 then a reverse-map (Hindi → English identifiers/keywords) is applied to rebuild valid English
 Python underneath. It does work in opposite direction (English to Hindi transliteration).
